@@ -8,6 +8,8 @@ from glob import glob
 from scipy.misc import imsave as ims
 from random import randint
 import data.cifar10_data as cifar10_data
+import data.imagenet_data as imagenet_data
+
 
 # -----------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -22,9 +24,13 @@ parser.add_argument('-bs', '--batch_size', type=int, default=32,
                     help='Batch size during training per GPU')
 parser.add_argument('-o', '--save_dir', type=str, default='.\checkpoint',
                     help='Location for parameter checkpoints and samples')
+parser.add_argument('-s', '--seed', type=int, default=8999,
+                    help='Random seed to use')
+parser.add_argument('-K', '--discriminator_steps', type=int, default=1,
+                    help='discriminator update steps, default is 1')
 
 
-def make_discriminator(image, cifar=True, reuse=False):
+def make_discriminator(image, args, cifar=True, reuse=False):
     if reuse:
             tf.get_variable_scope().reuse_variables()
 
@@ -32,24 +38,24 @@ def make_discriminator(image, cifar=True, reuse=False):
         h0 = lrelu(conv2d(image, 3, df_dim, name='d_h0_conv')) #16x16x64
         h1 = lrelu(d_bn1(conv2d(h0, df_dim, df_dim*2, name='d_h1_conv'))) #8x8x128
         h2 = lrelu(d_bn2(conv2d(h1, df_dim*2, df_dim*4, name='d_h2_conv'))) #4x4x256
-        h4 = dense(tf.reshape(h2, [batchsize, -1]), 4*4*df_dim*4, 1, scope='d_h3_lin')
+        h4 = dense(tf.reshape(h2, [args.batch_size, -1]), 4*4*df_dim*4, 1, scope='d_h3_lin')
         return tf.nn.sigmoid(h4), h4
     else:
         h0 = lrelu(conv2d(image, 3, df_dim, name='d_h0_conv'))
         h1 = lrelu(d_bn1(conv2d(h0, 64, df_dim*2, name='d_h1_conv')))
         h2 = lrelu(d_bn2(conv2d(h1, 128, df_dim*4, name='d_h2_conv')))
         h3 = lrelu(d_bn3(conv2d(h2, 256, df_dim*8, name='d_h3_conv')))
-        h4 = dense(tf.reshape(h3, [batchsize, -1]), 4*4*512, 1, scope='d_h3_lin')
+        h4 = dense(tf.reshape(h3, [args.batch_size, -1]), 4*4*512, 1, scope='d_h3_lin')
         return tf.nn.sigmoid(h4), h4
 
 
-def make_generator(z, cifar=True):
+def make_generator(z, args, cifar=True):
     if cifar:
         z2 = dense(z, z_dim, 4*4*gf_dim*4, scope='g_h0_lin')
         h0 = tf.nn.relu(g_bn0(tf.reshape(z2, [-1, 4, 4, gf_dim*4]))) # 4x4x256
         h1 = tf.nn.relu(g_bn1(conv_transpose(h0, [batchsize, 8, 8, gf_dim*2], "g_h1"))) #8x8x128
         h2 = tf.nn.relu(g_bn2(conv_transpose(h1, [batchsize, 16, 16, gf_dim*1], "g_h2"))) #16x16x64
-        h4 = conv_transpose(h2, [batchsize, 32, 32, 3], "g_h4")
+        h4 = conv_transpose(h2, [args.batch_size, 32, 32, 3], "g_h4")
         return tf.nn.tanh(h4)
     else:
         z2 = dense(z, z_dim, gf_dim*8*4*4, scope='g_h0_lin')
@@ -57,30 +63,26 @@ def make_generator(z, cifar=True):
         h1 = tf.nn.relu(g_bn1(conv_transpose(h0, [batchsize, 8, 8, gf_dim*4], "g_h1")))
         h2 = tf.nn.relu(g_bn2(conv_transpose(h1, [batchsize, 16, 16, gf_dim*2], "g_h2")))
         h3 = tf.nn.relu(g_bn3(conv_transpose(h2, [batchsize, 32, 32, gf_dim*1], "g_h3")))
-        h4 = conv_transpose(h3, [batchsize, 64, 64, 3], "g_h4")
+        h4 = conv_transpose(h3, [args.batch_size, 64, 64, 3], "g_h4")
         return tf.nn.tanh(h4)
 
 
 with tf.Session() as sess:
     # network params
-    batchsize = 64
-    iscrop = False
-    imagesize = 108
-    imageshape = [64, 64, 3]
-    if cifar:
-        imageshape = [32, 32, 3]
+    DataLoader = {'cifar': cifar10_data.DataLoader,
+                  'imagenet': imagenet_data.DataLoader}[args.data_set]
+
+    rng = np.random.RandomState(args.seed)
+    train_data = DataLoader(args.data_dir, 'train', args.batch_size,
+                            rng=rng, shuffle=True, return_labels=args.class_conditional)
+    image_shape = train_data.get_observation_size()  # e.g. a tuple (32,32,3)
+
     z_dim = 100
     gf_dim = 64
     df_dim = 64
-    if cifar:
+    if args.data_set == 'cifar':
         gf_dim = 32
         df_dim = 32
-    gfc_dim = 1024
-    dfc_dim = 1024
-    c_dim = 3
-    learningrate = 0.0002
-    beta1 = 0.5
-    dataset = "imagenet"
 
     # batch norm
     d_bn1 = batch_norm(name='d_bn1')
@@ -93,33 +95,29 @@ with tf.Session() as sess:
     g_bn3 = batch_norm(name='g_bn3')
 
     # build model
-    images = tf.placeholder(tf.float32, [batchsize] + imageshape, name="real_images")
-    zin = tf.placeholder(tf.float32, [None, z_dim], name="z")
-    G = generator(zin)
-    D_prob, D_logit = discriminator(images)
+    images = tf.placeholder(tf.float32, [args.batch_size] + imageshape, name="real_images") # placeholder for real image
+    zin = tf.placeholder(tf.float32, [None, z_dim], name="z")                               # placeholder for noise input
+    generator = make_generator(zin, args)
+    discriminator_prob, discriminator_logit = make_discriminator(images, args)
 
-    D_fake_prob, D_fake_logit = discriminator(G, reuse=True)
+    # make discriminator that use output of generator as input
+    discriminator_fake_prob, discriminator_fake_logit = make_discriminator(generator, args, reuse=True)
 
-    d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(D_logit, tf.ones_like(D_logit)))
-    d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(D_fake_logit, tf.zeros_like(D_fake_logit)))
+    # discriminator should assign correct label for both real image and generated image from generator
+    discriminator_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(discriminator_logit, tf.ones_like(discriminator_logit)))
+    discriminator_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(discriminator_fake_logit, tf.zeros_like(discriminator_fake_logit)))
 
-    gloss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(D_fake_logit, tf.ones_like(D_fake_logit)))
-    dloss = d_loss_real + d_loss_fake
+    # generator should learn to output image seems like to real image
+    generator_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(generator_fake_logit, tf.ones_like(generator_fake_logit)))
+    discriminator_loss = discriminator_loss_real + discriminator_loss_fake
 
     t_vars = tf.trainable_variables()
     d_vars = [var for var in t_vars if 'd_' in var.name]
     g_vars = [var for var in t_vars if 'g_' in var.name]
 
-    data = None
-    batch = None
-    if cifar:
-        batch = unpickle("cifar-10-batches-py/data_batch_1")
-    else:
-        data = glob(os.path.join("./data", dataset, "*.JPEG"))
-        print len(data)
-
-    d_optim = tf.train.AdamOptimizer(learningrate, beta1=beta1).minimize(dloss, var_list=d_vars)
-    g_optim = tf.train.AdamOptimizer(learningrate, beta1=beta1).minimize(gloss, var_list=g_vars)
+    # network optimizer
+    discriminator_opt = tf.train.AdamOptimizer(args.learning_rate).minimize(discriminator_loss, var_list=d_vars)
+    generator_opt = tf.train.AdamOptimizer(args.learning_rate).minimize(generator_loss, var_list=g_vars)
     tf.initialize_all_variables().run()
 
     saver = tf.train.Saver(max_to_keep=10)
