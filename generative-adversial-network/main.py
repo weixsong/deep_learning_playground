@@ -7,10 +7,24 @@ import time
 from glob import glob
 from scipy.misc import imsave as ims
 from random import randint
+import data.cifar10_data as cifar10_data
 
-cifar = False
+# -----------------------------------------------------------------------------
+parser = argparse.ArgumentParser()
+# data I/O
+parser.add_argument('-i', '--data_dir', type=str,
+                    default='/home/temp/data', help='Location for the dataset')
+parser.add_argument('-d', '--data_set', type=str,
+                    default='cifar', help='Can be either cifar|imagenet')
+parser.add_argument('-lr', '--learning_rate', type=float,
+                    default=0.001, help='Base learning rate')
+parser.add_argument('-bs', '--batch_size', type=int, default=32,
+                    help='Batch size during training per GPU')
+parser.add_argument('-o', '--save_dir', type=str, default='.\checkpoint',
+                    help='Location for parameter checkpoints and samples')
 
-def discriminator(image, reuse=False):
+
+def make_discriminator(image, cifar=True, reuse=False):
     if reuse:
             tf.get_variable_scope().reuse_variables()
 
@@ -28,7 +42,8 @@ def discriminator(image, reuse=False):
         h4 = dense(tf.reshape(h3, [batchsize, -1]), 4*4*512, 1, scope='d_h3_lin')
         return tf.nn.sigmoid(h4), h4
 
-def generator(z):
+
+def make_generator(z, cifar=True):
     if cifar:
         z2 = dense(z, z_dim, 4*4*gf_dim*4, scope='g_h0_lin')
         h0 = tf.nn.relu(g_bn0(tf.reshape(z2, [-1, 4, 4, gf_dim*4]))) # 4x4x256
@@ -45,7 +60,9 @@ def generator(z):
         h4 = conv_transpose(h3, [batchsize, 64, 64, 3], "g_h4")
         return tf.nn.tanh(h4)
 
+
 with tf.Session() as sess:
+    # network params
     batchsize = 64
     iscrop = False
     imagesize = 108
@@ -65,6 +82,7 @@ with tf.Session() as sess:
     beta1 = 0.5
     dataset = "imagenet"
 
+    # batch norm
     d_bn1 = batch_norm(name='d_bn1')
     d_bn2 = batch_norm(name='d_bn2')
     d_bn3 = batch_norm(name='d_bn3')
