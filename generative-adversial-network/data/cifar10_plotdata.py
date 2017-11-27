@@ -7,7 +7,7 @@ data_dir = '/home/temp/data'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--save_dir', type=str, default='./log')
-parser.add_argument('--data_dir', type=str, default='/home/temp/data')
+parser.add_argument('--data_dir', type=str, default='~/temp/data')
 parser.add_argument('--plot_title', type=str, default=None)
 args = parser.parse_args()
 print(args)
