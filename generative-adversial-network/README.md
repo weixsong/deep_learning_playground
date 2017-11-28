@@ -43,7 +43,7 @@ Generated images after 39000 steps:
 
 
 
-##How to use:
+# How to use:
 
 Download the datasets and place into the data folder.
 
