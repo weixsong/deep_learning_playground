@@ -193,7 +193,7 @@ with tf.Session() as sess:
                     print("evaluate model of step %d" % (steps,))
                     g_images = sess.run([generator], feed_dict={zin: display_z})
                     print(np.shape(g_images[0]))
-                    imsave(intermidiate_image_path + '/' + str(counter) + ".jpg", merge(g_images[0],[8,8]))
+                    imsave(intermidiate_image_path + '/' + str(steps) + ".jpg", merge(g_images[0],[8,8]))
                     # save model
                     checkpoint_path = os.path.join(args.save_dir, 'model.ckpt')
                     saver.save(sess, checkpoint_path, global_step=steps)
