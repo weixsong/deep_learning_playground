@@ -1,7 +1,12 @@
-# generative-adversial
-Image generation via generative adversial networks on CIFAR-10, Imagenet, and Celeb faces written in Tensorflow.
+# Generative Adversial Network (DC-GAN)
+Image generation via generative adversial networks on CIFAR-10, Imagenet, written in Tensorflow.
+
+I forked this repo and made some modification. Make it more easy to understanding. 
 
 This is code that goes along with [my post about generative adversial networks](http://kvfrans.com/generative-adversial-networks-explained/).
+
+Original Cifar images:
+![Alt text](images/cifar/cifar_real.jpg?raw=true "Real Cifar Image")
 
 ![](http://kvfrans.com/content/images/2016/06/cifar-early.png)
 
