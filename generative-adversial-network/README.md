@@ -6,11 +6,42 @@ I forked this repo and made some modification. Make it more easy to understandin
 This is code that goes along with [my post about generative adversial networks](http://kvfrans.com/generative-adversial-networks-explained/).
 
 Original Cifar images:
+
 ![Alt text](images/cifar/cifar_real.jpg?raw=true "Real Cifar Image")
 
-![](http://kvfrans.com/content/images/2016/06/cifar-early.png)
+Generated images after 800 steps:
 
-![](http://kvfrans.com/content/images/2016/06/cifar-late.png)
+![Alt text](images/cifar/800.jpg?raw=true "Real Cifar Image")
+
+Generated images after 1000 steps:
+
+![Alt text](images/cifar/1000.jpg?raw=true "Real Cifar Image")
+
+Generated images after 2000 steps:
+
+![Alt text](images/cifar/2000.jpg?raw=true "Real Cifar Image")
+
+Generated images after 3000 steps:
+
+![Alt text](images/cifar/3000.jpg?raw=true "Real Cifar Image")
+
+Generated images after 8000 steps:
+
+![Alt text](images/cifar/8000.jpg?raw=true "Real Cifar Image")
+
+Generated images after 20000 steps:
+
+![Alt text](images/cifar/20000.jpg?raw=true "Real Cifar Image")
+
+Generated images after 30000 steps:
+
+![Alt text](images/cifar/30000.jpg?raw=true "Real Cifar Image")
+
+Generated images after 39000 steps:
+
+![Alt text](images/cifar/39000.jpg?raw=true "Real Cifar Image")
+
+
 
 ##How to use:
 
