@@ -12,13 +12,7 @@ import math
 import matplotlib.pyplot as plt
 
 
-# Our current model only predicts one output value for each input,
-# so this approach will fail miserably. What we want is a model that has the capacity
-# to predict a range of different output values for each input.
-# In the next section we implement a Mixture Density Network (MDN) to do achieve this task.
-
-
-# Begin the Mixture logistic distribution
+# The Mixture logistic distribution
 
 def log_sum_exp(x):
     """
@@ -40,14 +34,17 @@ def log_prob_from_logits(x):
 
 tf.reset_default_graph()
 
+# network hyper parameters
 NHIDDEN = 50
 STDEV = 0.5
 KMIX = 10  # number of mixtures
 NOUT = KMIX * 3  # pi, mu, stdev
 
-x = tf.placeholder(dtype=tf.float32, shape=[None,1], name="x")
-y = tf.placeholder(dtype=tf.float32, shape=[None,1], name="y")
+# network placeholder
+x = tf.placeholder(dtype=tf.float32, shape=[None, 1], name="x")
+y = tf.placeholder(dtype=tf.float32, shape=[None, 1], name="y")
 
+# network weight parameters
 Wh = tf.Variable(tf.random_normal([1, NHIDDEN], stddev=STDEV, dtype=tf.float32))
 bh = tf.Variable(tf.random_normal([1, NHIDDEN], stddev=STDEV, dtype=tf.float32))
 
@@ -55,41 +52,35 @@ Wo = tf.Variable(tf.random_normal([NHIDDEN, NOUT], stddev=STDEV, dtype=tf.float3
 bo = tf.Variable(tf.random_normal([1, NOUT], stddev=STDEV, dtype=tf.float32))
 
 hidden_layer = tf.nn.tanh(tf.matmul(x, Wh) + bh)
-output = tf.matmul(hidden_layer, Wo) + bo
+output = tf.matmul(hidden_layer, Wo) + bo  # network output, linear transform of hidden layer
 
 
-def mix_logistic_loss(x, probs, means, scales):
-    logit_probs = tf.log(probs)
-    log_scales = tf.log(scales)
+# compute the network loss given mixture logistic distribution parameters
+def mix_logistic_loss(x, logit_probs, means, log_scales):
     log_scales = tf.maximum(log_scales, -7.)
 
     centered_x = x - means
-    inv_stdv = tf.reciprocal(scales)
+    inv_stdv = tf.exp(-log_scales)
 
     mid_in = inv_stdv * centered_x
     # compute the derivative of Sigmoid, in order to get the pdf of logistic distribution
     log_pdf_mid = mid_in - log_scales - 2. * tf.nn.softplus(mid_in)
 
-    log_probs = log_pdf_mid + log_prob_from_logits(logit_probs)
-    final_log = log_sum_exp(log_probs)
-    return -tf.reduce_mean(final_log)
+    log_probs = log_pdf_mid + log_prob_from_logits(logit_probs)  # this is log-softmax weight
+    final_log = log_sum_exp(log_probs)  # log-likelihood
+
+    return -tf.reduce_mean(final_log)  # return negative-log-likelihood
 
 
 def get_mixture_coef(output):
-    out_pi, out_mu, out_sigma = tf.split(output, 3, 1)
-    max_pi = tf.reduce_max(out_pi, 1, keep_dims=True)
-    out_pi = tf.subtract(out_pi, max_pi)
-    out_pi = tf.exp(out_pi)
-    normalize_pi = tf.reciprocal(tf.reduce_sum(out_pi, 1, keep_dims=True))
-    out_pi = tf.multiply(normalize_pi, out_pi)
-    out_sigma = tf.exp(out_sigma)
-
-    return out_pi, out_mu, out_sigma
+    out_logit_probs, out_mu, out_log_sigma = tf.split(output, 3, 1)
+    return out_logit_probs, out_mu, out_log_sigma
 
 
-out_pi, out_mu, out_sigma = get_mixture_coef(output)
+out_logit_probs, out_mu, out_log_sigma = get_mixture_coef(output)
 
 
+# generate training data
 NSAMPLE = 2500
 y_data = np.float32(np.random.uniform(-10.5, 10.5, (1, NSAMPLE))).T
 r_data = np.float32(np.random.normal(size=(NSAMPLE, 1)))  # random noise
@@ -99,7 +90,8 @@ plt.figure(figsize=(8, 8))
 plt.plot(x_data, y_data, 'ro', alpha=0.3)
 plt.show()
 
-loss = mix_logistic_loss(y, out_pi, out_mu, out_sigma)
+# compute loss ops
+loss = mix_logistic_loss(y, out_logit_probs, out_mu, out_log_sigma)
 optimizer = tf.train.AdamOptimizer().minimize(loss)
 
 # generate test data
@@ -119,11 +111,22 @@ def get_pi_idx(x, pdf):
     return -1
 
 
+def np_log_prob_from_logits(x):
+    """ numerically stable log_softmax implementation that prevents overflow """
+    axis = len(x.shape) - 1
+    m = np.amax(x, axis=axis, keepdims=True)
+    return x - m - np.log(np.sum(np.exp(x - m), axis=axis, keepdims=True))
+
+
 # generate samples from the network learned distribution
-def generate_ensemble(probs, means, scales, M=10):
+def generate_ensemble(logit_probs, means, log_scales, M=10):
     NTEST = x_test.size
     result = np.random.rand(NTEST, M)  # initially random [0, 1]
     rn = np.random.logistic(size=(NTEST, M))  # logistic random matrix
+
+    log_probs = np_log_prob_from_logits(logit_probs)
+    probs = np.exp(log_probs)
+    scales = np.exp(log_scales)
 
     # transforms result into random ensembles
     for j in range(0, M):
@@ -165,4 +168,3 @@ with tf.Session() as sess:
     plt.show()
 
     print("job done")
-
