@@ -67,6 +67,7 @@ def mix_logistic_loss(x, probs, means, scales):
     inv_stdv = tf.reciprocal(scales)
 
     mid_in = inv_stdv * centered_x
+    # compute the derivative of Sigmoid, in order to get the pdf of logistic distribution
     log_pdf_mid = mid_in - log_scales - 2. * tf.nn.softplus(mid_in)
 
     log_probs = log_pdf_mid + log_prob_from_logits(logit_probs)
@@ -123,9 +124,6 @@ def generate_ensemble(probs, means, scales, M=10):
     NTEST = x_test.size
     result = np.random.rand(NTEST, M)  # initially random [0, 1]
     rn = np.random.logistic(size=(NTEST, M))  # logistic random matrix
-    mu = 0
-    std = 0
-    idx = 0
 
     # transforms result into random ensembles
     for j in range(0, M):
