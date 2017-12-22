@@ -12,9 +12,9 @@ import math
 import matplotlib.pyplot as plt
 
 
-# Our current model only predicts one output value for each input, 
-# so this approach will fail miserably. What we want is a model that has the capacity 
-# to predict a range of different output values for each input. 
+# Our current model only predicts one output value for each input,
+# so this approach will fail miserably. What we want is a model that has the capacity
+# to predict a range of different output values for each input.
 # In the next section we implement a Mixture Density Network (MDN) to do achieve this task.
 
 
@@ -40,7 +40,7 @@ def log_prob_from_logits(x):
 
 tf.reset_default_graph()
 
-NHIDDEN = 24
+NHIDDEN = 50
 STDEV = 0.5
 KMIX = 10  # number of mixtures
 NOUT = KMIX * 3  # pi, mu, stdev
@@ -58,13 +58,13 @@ hidden_layer = tf.nn.tanh(tf.matmul(x, Wh) + bh)
 output = tf.matmul(hidden_layer, Wo) + bo
 
 
-def mix_logistic_loss(x, output, nr_mix):
-    logit_probs = output[:, :nr_mix]
-    means = output[:, nr_mix: 2*nr_mix]
-    log_scales = tf.maximum(output[:, 2*nr_mix: 3*nr_mix], -7.)
+def mix_logistic_loss(x, probs, means, scales):
+    logit_probs = tf.log(probs)
+    log_scales = tf.log(scales)
+    log_scales = tf.maximum(log_scales, -7.)
 
     centered_x = x - means
-    inv_stdv = tf.exp(-log_scales)
+    inv_stdv = tf.reciprocal(scales)
 
     mid_in = inv_stdv * centered_x
     log_pdf_mid = mid_in - log_scales - 2. * tf.nn.softplus(mid_in)
@@ -75,11 +75,18 @@ def mix_logistic_loss(x, output, nr_mix):
 
 
 def get_mixture_coef(output):
-    out_logit_probs, out_means, out_log_scales = tf.split(output, 3, 1)
-    return out_logit_probs, out_means, out_log_scales
+    out_pi, out_mu, out_sigma = tf.split(output, 3, 1)
+    max_pi = tf.reduce_max(out_pi, 1, keep_dims=True)
+    out_pi = tf.subtract(out_pi, max_pi)
+    out_pi = tf.exp(out_pi)
+    normalize_pi = tf.reciprocal(tf.reduce_sum(out_pi, 1, keep_dims=True))
+    out_pi = tf.multiply(normalize_pi, out_pi)
+    out_sigma = tf.exp(out_sigma)
+
+    return out_pi, out_mu, out_sigma
 
 
-out_logit_probs, out_means, out_log_scales = get_mixture_coef(output)
+out_pi, out_mu, out_sigma = get_mixture_coef(output)
 
 
 NSAMPLE = 2500
@@ -91,7 +98,7 @@ plt.figure(figsize=(8, 8))
 plt.plot(x_data, y_data, 'ro', alpha=0.3)
 plt.show()
 
-loss = mix_logistic_loss(y, output, KMIX)
+loss = mix_logistic_loss(y, out_pi, out_mu, out_sigma)
 optimizer = tf.train.AdamOptimizer().minimize(loss)
 
 # generate test data
@@ -112,7 +119,7 @@ def get_pi_idx(x, pdf):
 
 
 # generate samples from the network learned distribution
-def generate_ensemble(logit_probs, means, log_scales, M=10):
+def generate_ensemble(probs, means, scales, M=10):
     NTEST = x_test.size
     result = np.random.rand(NTEST, M)  # initially random [0, 1]
     rn = np.random.logistic(size=(NTEST, M))  # logistic random matrix
@@ -120,16 +127,12 @@ def generate_ensemble(logit_probs, means, log_scales, M=10):
     std = 0
     idx = 0
 
-    # convert log prob to prob
-    distribution_probs = np.exp(logit_probs)
-    out_scale = np.exp(log_scales)
-
     # transforms result into random ensembles
     for j in range(0, M):
         for i in range(0, NTEST):
-            idx = get_pi_idx(result[i, j], distribution_probs[i])
+            idx = get_pi_idx(result[i, j], probs[i])
             mu = means[i, idx]
-            std = out_scale[i, idx]
+            std = scales[i, idx]
             result[i, j] = mu + rn[i, j] * std
 
     return result
@@ -157,9 +160,8 @@ with tf.Session() as sess:
     plt.show()
 
     # generate samples
-    out_logit_probs, out_means, out_log_scales = sess.run(get_mixture_coef(output), feed_dict={x: x_test})
-
-    y_test = generate_ensemble(out_logit_probs, out_means, out_log_scales)
+    test_probs, test_means, test_scales = sess.run(get_mixture_coef(output), feed_dict={x: x_test})
+    y_test = generate_ensemble(test_probs, test_means, test_scales)
     plt.figure(figsize=(8, 8))
     plt.plot(x_data, y_data, 'ro', x_test, y_test, 'bo', alpha=0.3)
     plt.show()
