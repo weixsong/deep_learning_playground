@@ -125,7 +125,7 @@ if __name__ == '__main__':
     max_iters = 10000
     batch_size = 128
     learning_rate = 0.001
-    k = 0
+    k = 0  # what the hell of k = 0?
 
     x, e = inputs(data_dim, enc_z)
     mu, log_var, z0, lambd = encoder(x, e, data_dim, enc_h, enc_z, k)
