@@ -38,3 +38,14 @@ def U4(z):
     in1 = np.exp(-0.5 * ((z[:, 1] - w1(z)) / 0.4) ** 2)
     in2 = np.exp(-0.5 * ((z[:, 1] - w1(z) + w3(z)) / 0.35) ** 2)
     return -np.log(in1 + in2)
+
+
+def normal_sampler(mean=np.zeros(2), sigma=np.ones(2)):
+    dim = mean.shape[0]
+
+    def sampler(N):
+        z = mean + np.random.randn(N, dim) * sigma
+        logq = -0.5 * np.sum(2 * np.log(sigma) + np.log(2 * np.pi) + ((z - mean) / sigma) ** 2, 1)
+        return z, logq
+
+    return sampler
