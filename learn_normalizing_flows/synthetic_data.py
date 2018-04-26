@@ -2,20 +2,40 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import tensorflow as tf
 
 # synthetic data in table 1 of paper: https://arxiv.org/abs/1505.05770
+
+
+def w1_tf(z):
+    return tf.sin(2 * np.pi * z[:, 0] / 4)
 
 
 def w1(z):
     return np.sin(2 * np.pi * z[:, 0] / 4)
 
 
+def w2_tf(z):
+    return 3 * tf.exp(-0.5 * ((z[:, 0] - 1) / 0.6) ** 2)
+
+
 def w2(z):
     return 3 * np.exp(-0.5 * ((z[:, 0] - 1) / 0.6) ** 2)
 
 
+def w3_tf(z):
+    return 3 * tf.sigmoid((z[:, 0] - 1) / 0.3)
+
+
 def w3(z):
     return 3 * (1.0 / (1 + np.exp(-(z[:, 0] - 1) / 0.3)))
+
+
+def U1_tf(z):
+    z_norm = tf.norm(z, 2, 1)
+    add1 = 0.5 * ((z_norm - 2) / 0.4) ** 2
+    add2 = -tf.log(tf.exp(-0.5 * ((z[:, 0] - 2) / 0.6) ** 2) + tf.exp(-0.5 * ((z[:, 0] + 2) / 0.6) ** 2))
+    return add1 + add2
 
 
 def U1(z):
