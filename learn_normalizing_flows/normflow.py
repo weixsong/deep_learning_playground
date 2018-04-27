@@ -151,7 +151,7 @@ if __name__ == '__main__':
     K = 32
     z_dim = 2
     L = 256
-    steps = 200
+    steps = 4000000
     is_training = True
     learning_rate = 0.001
     save_model_every_steps = 10000
@@ -168,7 +168,8 @@ if __name__ == '__main__':
     train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
     sess = tf.InteractiveSession()
-    sess.run(tf.initialize_all_variables())
+    init = tf.global_variables_initializer()
+    sess.run(init)
 
     saver = tf.train.Saver(var_list=tf.trainable_variables())
 
@@ -176,7 +177,7 @@ if __name__ == '__main__':
     for step in range(steps):
         z0, log_q0 = sampler(L)
         l, _ = sess.run([loss, train_op], feed_dict={input_z0_placeholder: z0, log_q0_placehoder: log_q0})
-        if step % 100 == 0:
+        if step % 1000 == 0:
             print("step {}, loss={}".format(step, l))
 
         if step % save_model_every_steps == 0:
