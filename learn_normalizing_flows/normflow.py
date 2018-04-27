@@ -143,6 +143,43 @@ def save(saver, sess, logdir, step, write_meta=False):
     print('Save Model Done.')
 
 
+def save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler, path):
+    fig, axes = plt.subplots(2, 2)
+    axes = axes.flatten()
+    ax = axes[0]
+
+    side = np.linspace(-5, 5, 500)
+    X, Y = np.meshgrid(side, side)
+    counts = np.zeros(X.shape)
+    p = np.zeros(X.shape)
+
+    size = [-500, 500]
+    num_side = 500
+
+    L = 100
+    print("Sampling", end='')
+    for i in range(1000):
+        z, logq = sampler(L)
+        z_k, logq_k = sess.run([zk, logqk], feed_dict={input_z0_placeholder: z, log_q0_placehoder: logq})
+        logq_k = logq - logq_k
+        q_k = np.exp(logq_k)
+        z_k = (z_k - size[0]) * num_side / (size[1] - size[0])
+        for l in range(L):
+            x, y = int(z_k[l, 1]), int(z_k[l, 0])
+            if 0 <= x < num_side and 0 <= y < num_side:
+                counts[x, y] += 1
+                p[x, y] += q_k[l]
+
+    counts = np.maximum(counts, np.ones(counts.shape))
+    p /= counts
+    p /= np.sum(p)
+    Y = -Y
+    ax.pcolormesh(X, Y, p)
+
+    fig.tight_layout()
+    plt.savefig(path)
+
+
 if __name__ == '__main__':
     # show data
     print("show synethtic data, close the data image and continue")
@@ -155,7 +192,11 @@ if __name__ == '__main__':
     is_training = True
     learning_rate = 0.001
     save_model_every_steps = 10000
-    logdir = './log'
+    logdir = './log/'
+    logdir_image = './log/image/'
+
+    if not tf.gfile.Exists(logdir_image):
+        tf.gfile.MakeDirs(logdir_image)
 
     U1 = getattr(synthetic_data, 'U1_tf')
     input_z0_placeholder = tf.placeholder(tf.float32, [None, 2])
@@ -182,48 +223,8 @@ if __name__ == '__main__':
 
         if step % save_model_every_steps == 0:
             save(saver, sess, logdir, step, write_meta=False)
+            path = os.path.join(logdir_image, str(step) + '.png')
+            save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler, path)
 
     save(saver, sess, logdir, steps, write_meta=False)
-
-    # sample from the trained model
-    # show_samples(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler)
-
-    fig, axes = plt.subplots(2, 2)
-    axes = axes.flatten()
-    ax = axes[0]
-
-    side = np.linspace(-5, 5, 500)
-    X, Y = np.meshgrid(side, side)
-    counts = np.zeros(X.shape)
-    p = np.zeros(X.shape)
-
-    size = [-500, 500]
-    num_side = 500
-
-    L = 100
-    print("Sampling", end='')
-    for i in range(10000):
-        print('.', end='')
-        z, logq = sampler(L)
-        z_k, logq_k = sess.run([zk, logqk], feed_dict={input_z0_placeholder: z, log_q0_placehoder: logq})
-        # logq = np.reshape(logq, (-1, 1))
-        logq_k = logq - logq_k
-        q_k = np.exp(logq_k)
-        z_k = (z_k - size[0]) * num_side / (size[1] - size[0])
-        for l in range(L):
-            x, y = int(z_k[l, 1]), int(z_k[l, 0])
-            if 0 <= x < num_side and 0 <= y < num_side:
-                counts[x, y] += 1
-                p[x, y] += q_k[l]
-
-    print()
-    counts = np.maximum(counts, np.ones(counts.shape))
-    p /= counts
-    p /= np.sum(p)
-    Y = -Y
-    ax.pcolormesh(X, Y, p)
-
-    fig.tight_layout()
-    plt.show()
-
     print("done!")

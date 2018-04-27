@@ -34,7 +34,7 @@ def plot_density():
         ax.axis('off')
 
     fig.tight_layout()
-    plt.show()
+    plt.savefig('./data.png')
 
 
 if __name__ == '__main__':
