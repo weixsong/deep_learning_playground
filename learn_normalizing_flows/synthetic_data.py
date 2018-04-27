@@ -34,7 +34,7 @@ def w3(z):
 def U1_tf(z):
     z_norm = tf.norm(z, 2, 1)
     add1 = 0.5 * ((z_norm - 2) / 0.4) ** 2
-    add2 = -tf.log(tf.exp(-0.5 * ((z[:, 0] - 2) / 0.6) ** 2) + tf.exp(-0.5 * ((z[:, 0] + 2) / 0.6) ** 2))
+    add2 = -tf.log(tf.exp(-0.5 * ((z[:, 0] - 2) / 0.6) ** 2) + tf.exp(-0.5 * ((z[:, 0] + 2) / 0.6) ** 2) + 1e-9)
     return add1 + add2
 
 
