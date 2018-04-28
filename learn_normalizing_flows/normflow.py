@@ -161,7 +161,7 @@ def save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler
     for i in range(1000):
         z, logq = sampler(L)
         z_k, logq_k = sess.run([zk, logqk], feed_dict={input_z0_placeholder: z, log_q0_placehoder: logq})
-        logq_k = logq - logq_k
+        logq_k = logq_k
         q_k = np.exp(logq_k)
         z_k = (z_k - size[0]) * num_side / (size[1] - size[0])
         for l in range(L):
@@ -189,11 +189,12 @@ if __name__ == '__main__':
     z_dim = 2
     L = 256
     steps = 4000000
-    is_training = True
+    is_training = False
     learning_rate = 0.001
     save_model_every_steps = 10000
     logdir = './log/'
     logdir_image = './log/image/'
+    checkpoint = r'model.ckpt-3980000'
 
     if not tf.gfile.Exists(logdir_image):
         tf.gfile.MakeDirs(logdir_image)
@@ -214,17 +215,26 @@ if __name__ == '__main__':
 
     saver = tf.train.Saver(var_list=tf.trainable_variables())
 
-    sampler = synthetic_data.normal_sampler()
-    for step in range(steps):
-        z0, log_q0 = sampler(L)
-        l, _ = sess.run([loss, train_op], feed_dict={input_z0_placeholder: z0, log_q0_placehoder: log_q0})
-        if step % 1000 == 0:
-            print("step {}, loss={}".format(step, l))
+    # TODO: restore from
+    if not is_training:
+        # restore model from checkpoint
+        saver.restore(sess, checkpoint)
+        print('Model restore successfully!')
 
-        if step % save_model_every_steps == 0:
-            save(saver, sess, logdir, step, write_meta=False)
-            path = os.path.join(logdir_image, str(step) + '.png')
-            save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler, path)
+    sampler = synthetic_data.normal_sampler()
+    if is_training:
+        for step in range(steps):
+            z0, log_q0 = sampler(L)
+            l, _ = sess.run([loss, train_op], feed_dict={input_z0_placeholder: z0, log_q0_placehoder: log_q0})
+            if step % 1000 == 0:
+                print("step {}, loss={}".format(step, l))
+
+            if step % save_model_every_steps == 0:
+                save(saver, sess, logdir, step, write_meta=False)
+                path = os.path.join(logdir_image, str(step) + '.png')
+                save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler, path)
 
     save(saver, sess, logdir, steps, write_meta=False)
     print("done!")
+    path = os.path.join(logdir_image, 'final.png')
+    save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler, path)
