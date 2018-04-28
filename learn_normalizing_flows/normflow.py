@@ -153,7 +153,7 @@ def save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler
     counts = np.zeros(X.shape)
     p = np.zeros(X.shape)
 
-    size = [-500, 500]
+    size = [-5, 5]
     num_side = 500
 
     L = 100
@@ -161,7 +161,6 @@ def save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler
     for i in range(1000):
         z, logq = sampler(L)
         z_k, logq_k = sess.run([zk, logqk], feed_dict={input_z0_placeholder: z, log_q0_placehoder: logq})
-        logq_k = logq_k
         q_k = np.exp(logq_k)
         z_k = (z_k - size[0]) * num_side / (size[1] - size[0])
         for l in range(L):
