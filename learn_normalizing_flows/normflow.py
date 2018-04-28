@@ -147,7 +147,7 @@ if __name__ == '__main__':
     print("show synethtic data, close the data image and continue")
     visualize.plot_density()
 
-    K = 4
+    K = 32
     z_dim = 2
     L = 256
     steps = 1000000
