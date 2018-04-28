@@ -23,7 +23,7 @@ class PlanarFlow(object):
         self.var_scope = var_scope
 
         with tf.variable_scope(var_scope):
-            initializer = tf.truncated_normal_initializer(stddev=z_dim)
+            initializer = tf.contrib.layers.xavier_initializer_conv2d()
             self.u = tf.get_variable('u', initializer=initializer(shape=(z_dim, 1)))
             self.w = tf.get_variable('w', initializer=initializer(shape=(z_dim, 1)))
             self.b = tf.get_variable('b', initializer=initializer(shape=(1, 1)))
