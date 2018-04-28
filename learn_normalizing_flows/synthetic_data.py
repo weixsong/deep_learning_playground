@@ -48,16 +48,32 @@ def U2(z):
     return 0.5 * ((z[:, 1] - w1(z)) / 0.4) ** 2
 
 
+def U2_tf(z):
+    return 0.5 * ((z[:, 1] - w1_tf(z)) / 0.4) ** 2
+
+
 def U3(z):
     in1 = np.exp(-0.5 * ((z[:, 1] - w1(z)) / 0.35) ** 2)
     in2 = np.exp(-0.5 * ((z[:, 1] - w1(z) + w2(z)) / 0.35) ** 2)
-    return -np.log(in1 + in2)
+    return -np.log(in1 + in2 + 1e-9)
+
+
+def U3_tf(z):
+    in1 = tf.exp(-0.5 * ((z[:, 1] - w1_tf(z)) / 0.35) ** 2)
+    in2 = tf.exp(-0.5 * ((z[:, 1] - w1_tf(z) + w2_tf(z)) / 0.35) ** 2)
+    return -tf.log(in1 + in2 + 1e-9)
 
 
 def U4(z):
     in1 = np.exp(-0.5 * ((z[:, 1] - w1(z)) / 0.4) ** 2)
     in2 = np.exp(-0.5 * ((z[:, 1] - w1(z) + w3(z)) / 0.35) ** 2)
     return -np.log(in1 + in2)
+
+
+def U4_tf(z):
+    in1 = tf.exp(-0.5 * ((z[:, 1] - w1_tf(z)) / 0.4) ** 2)
+    in2 = tf.exp(-0.5 * ((z[:, 1] - w1_tf(z) + w3_tf(z)) / 0.35) ** 2)
+    return -tf.log(in1 + in2 + 1e-9)
 
 
 def normal_sampler(mean=np.zeros(2), sigma=np.ones(2)):

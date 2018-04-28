@@ -8,6 +8,8 @@ import synthetic_data
 import visualize
 import matplotlib.pyplot as plt
 
+plt.ioff()
+
 
 class PlanarFlow(object):
     """
@@ -68,57 +70,10 @@ class NormalizingFlow(object):
         return z, logp
 
 
-# class NormalizingFlowTrainer(object):
-#     """
-#     Trainer for normalizing flow
-#     """
-#     def __init__(self, sess, U_func, L=256, steps=100000, lr=0.001, is_training=True):
-#         self.sess = sess
-#         self.lr = lr
-#         self.is_training = is_training
-#         self.sampler = synthetic_data.normal_sampler()
-#         self.L = L
-#         self.steps = steps
-#         self.U_func = U_func
-#         self.name = U_func.__name__
-#
-#     def compute_loss(self, logqk, z_k):
-#         with tf.name_scope(self.name):
-#             U_z = self.U_func(z_k)
-#             U_z = tf.clip_by_value(U_z, -10000, 10000)
-#             kld = logqk + U_z
-#             kld = tf.reduce_mean(kld)
-#         return kld
-#
-#     def build_network(self):
-#         with tf.name_scope(self.name):
-#             self.input = tf.placeholder(tf.float32, [None, 2])
-#             self.logq0 = tf.placeholder(tf.float32, [None])
-#
-#             normFlow = NormalizingFlow(z_dim=z_dim, K=K)
-#             zk, logqk = normFlow(self.input, self.logq0)
-#
-#             self.zk = zk
-#             self.logqk = logqk
-#             self.loss = self.compute_loss(logqk, zk)
-#
-#     def train(self):
-#         print('training function {}'.format(self.U_func.__name__))
-#         train_op = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
-#         for step in range(self.steps):
-#             z0, log_q0 = self.sampler(self.L)
-#             l, _ = sess.run([self.loss, train_op], feed_dict={self.input: z0, self.logq0: log_q0})
-#             if step % 100 == 0:
-#                 print("step {}, loss={}".format(step, l))
-
-
-
-def build_network(K=32, z_dim=2):
-    input = tf.placeholder(tf.float32, [None, 2])
-    logq0 = tf.placeholder(tf.float32, [None])
-
-    normFlow = NormalizingFlow(z_dim=z_dim, K=K)
-    zk, logqk = normFlow(input, logq0)
+def build_network(input_z0_placeholder, log_q0_placehoder, K=32, z_dim=2, name='func_U'):
+    with tf.variable_scope(name):
+        normFlow = NormalizingFlow(z_dim=z_dim, K=K)
+        zk, logqk = normFlow(input_z0_placeholder, log_q0_placehoder)
     return zk, logqk
 
 
@@ -143,40 +98,48 @@ def save(saver, sess, logdir, step, write_meta=False):
     print('Save Model Done.')
 
 
-def save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler, path):
+def save_image(sess, zk_arr, logqk_arr, input_z0_placeholder, log_q0_placehoder, sampler, path):
     fig, axes = plt.subplots(2, 2)
     axes = axes.flatten()
-    ax = axes[0]
 
-    side = np.linspace(-5, 5, 500)
-    X, Y = np.meshgrid(side, side)
-    counts = np.zeros(X.shape)
-    p = np.zeros(X.shape)
+    for u_idx, (zk, logqk) in enumerate(zip(zk_arr, logqk_arr)):
+        ax = axes[u_idx]
 
-    size = [-5, 5]
-    num_side = 500
+        side = np.linspace(-5, 5, 500)
+        X, Y = np.meshgrid(side, side)
+        counts = np.zeros(X.shape)
+        p = np.zeros(X.shape)
 
-    L = 100
-    print("Sampling", end='')
-    for i in range(1000):
-        z, logq = sampler(L)
-        z_k, logq_k = sess.run([zk, logqk], feed_dict={input_z0_placeholder: z, log_q0_placehoder: logq})
-        q_k = np.exp(logq_k)
-        z_k = (z_k - size[0]) * num_side / (size[1] - size[0])
-        for l in range(L):
-            x, y = int(z_k[l, 1]), int(z_k[l, 0])
-            if 0 <= x < num_side and 0 <= y < num_side:
-                counts[x, y] += 1
-                p[x, y] += q_k[l]
+        size = [-5, 5]
+        num_side = 500
 
-    counts = np.maximum(counts, np.ones(counts.shape))
-    p /= counts
-    p /= np.sum(p)
-    Y = -Y
-    ax.pcolormesh(X, Y, p)
+        L = 100
+        print("Sampling", end='')
+        for i in range(1000):
+            z, logq = sampler(L)
+            z_k, logq_k = sess.run([zk, logqk], feed_dict={input_z0_placeholder: z, log_q0_placehoder: logq})
+            # check nan
+            if np.any(np.isnan(z_k)):
+                print("NaN detected")
+                continue
+
+            q_k = np.exp(logq_k)
+            z_k = (z_k - size[0]) * num_side / (size[1] - size[0])
+            for l in range(L):
+                x, y = int(z_k[l, 1]), int(z_k[l, 0])
+                if 0 <= x < num_side and 0 <= y < num_side:
+                    counts[x, y] += 1
+                    p[x, y] += q_k[l]
+
+        counts = np.maximum(counts, np.ones(counts.shape))
+        p /= counts
+        p /= np.sum(p)
+        Y = -Y
+        ax.pcolormesh(X, Y, p)
 
     fig.tight_layout()
     plt.savefig(path)
+    plt.close()
 
 
 if __name__ == '__main__':
@@ -184,29 +147,42 @@ if __name__ == '__main__':
     print("show synethtic data, close the data image and continue")
     visualize.plot_density()
 
-    K = 32
+    K = 4
     z_dim = 2
     L = 256
-    steps = 4000000
-    is_training = False
+    steps = 1000000
+    is_training = True
     learning_rate = 0.001
-    save_model_every_steps = 10000
+    save_model_every_steps = 1000
+    print_loss_every_steps = 100
     logdir = './log/'
-    logdir_image = './log/image/'
+    logdir = os.path.join(logdir, 'K=' + str(K))
+    logdir_image = os.path.join(logdir, 'images')
     checkpoint = r'model.ckpt-3980000'
 
     if not tf.gfile.Exists(logdir_image):
         tf.gfile.MakeDirs(logdir_image)
 
     U1 = getattr(synthetic_data, 'U1_tf')
+    U2 = getattr(synthetic_data, 'U2_tf')
+    U3 = getattr(synthetic_data, 'U3_tf')
+    U4 = getattr(synthetic_data, 'U4_tf')
+    U_arr = [U1, U2, U3, U4]
     input_z0_placeholder = tf.placeholder(tf.float32, [None, 2])
     log_q0_placehoder = tf.placeholder(tf.float32, [None])
 
-    normFlow = NormalizingFlow(z_dim=2, K=K)
-    zk, logqk = normFlow(input_z0_placeholder, log_q0_placehoder)
-    loss = compute_loss(U1, logqk, zk)
-
-    train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+    zk_arr = []
+    logqk_arr = []
+    loss_arr = []
+    train_op_arr = []
+    for i, U in enumerate(U_arr):
+        zk, logqk = build_network(input_z0_placeholder, log_q0_placehoder, K=K, z_dim=z_dim, name="dist/" + U.__name__)
+        loss = compute_loss(U, logqk, zk)
+        train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+        zk_arr.append(zk)
+        logqk_arr.append(logqk)
+        loss_arr.append(loss)
+        train_op_arr.append(train_op)
 
     sess = tf.InteractiveSession()
     init = tf.global_variables_initializer()
@@ -224,16 +200,23 @@ if __name__ == '__main__':
     if is_training:
         for step in range(steps):
             z0, log_q0 = sampler(L)
-            l, _ = sess.run([loss, train_op], feed_dict={input_z0_placeholder: z0, log_q0_placehoder: log_q0})
-            if step % 1000 == 0:
-                print("step {}, loss={}".format(step, l))
+            for i, U in enumerate(U_arr):
+                loss = loss_arr[i]
+                train_op = train_op_arr[i]
+                zk = zk_arr[i]
+                logqk = logqk_arr[i]
+
+                l, _ = sess.run([loss, train_op], feed_dict={input_z0_placeholder: z0, log_q0_placehoder: log_q0})
+                if step % print_loss_every_steps == 0:
+                    print("Training {}, step {}, loss={}".format(U.__name__, step, l))
 
             if step % save_model_every_steps == 0:
                 save(saver, sess, logdir, step, write_meta=False)
                 path = os.path.join(logdir_image, str(step) + '.png')
-                save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler, path)
+                save_image(sess, zk_arr, logqk_arr, input_z0_placeholder, log_q0_placehoder, sampler, path)
 
-    save(saver, sess, logdir, steps, write_meta=False)
+        save(saver, sess, logdir, steps, write_meta=False)
+
     print("done!")
     path = os.path.join(logdir_image, 'final.png')
-    save_image(sess, zk, logqk, input_z0_placeholder, log_q0_placehoder, sampler, path)
+    save_image(sess, zk_arr, logqk_arr, input_z0_placeholder, log_q0_placehoder, sampler, path)
