@@ -14,6 +14,17 @@ We want to learning the Bi-variate distribution of Z(Z1, Z2). Equation for each 
 Then, our **goal** is to transfer some simple distribution to the target distribution by Normalizing Flows.
 We will select Normal distribution as the simple distribution and then transfer simple standard Normal distribution to the complex target distribution.
 
+# Experiments Results
+This section show the experiments results.
+1. K=4
+
+2. K=8
+
+3. K=16
+<img src="images/k_16/k_16.gif">
+
+4. K=32
+
 # Training Criteria
 The known target distributions are specified using energy functions U(z).
 p(z) = \frac{1}{Z} e^{-U(z)}, where Z is the unknown partition function (normalization constant); 
