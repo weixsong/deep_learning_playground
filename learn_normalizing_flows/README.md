@@ -36,11 +36,11 @@ that is, p(z) \prop e^{-U(z)}.
    where each flow includes model parameters \lambda = {w, u, b}.
 3. Jointly optimize all model parameters by minimizing **KL-Divergence** between the approximate distribution q_K(z)
    and the true distribution p(z).
-     loss = KL[q_K(z)||p(z)] = E_{z_K~q_K(z)} [log q_K(z_K) - log p(z_K)]
-                             = E_{z_K~q_K(z)} [(log q_0(z_0) - sum_k log det |J_k|) - (-U(z_K) - log(Z))]
-                             = E_{z_0~q_0(z)} [log q_0(z_0) - sum_k log det |J_k| + U(f_1(f_2(..f_K(z_0)))) + log(Z)]
+     loss = KL[q_K(z)||p(z)] = E_{z_K ~ q_K(z)} [log q_K(z_K) - log p(z_K)]
+                             = E_{z_K ~ q_K(z)} [(log q_0(z_0) - sum_k log det |J_k|) - (-U(z_K) - log(Z))]
+                             = E_{z_0 ~ q_0(z)} [log q_0(z_0) - sum_k log det |J_k| + U(f_1(f_2(..f_K(z_0)))) + log(Z)]
    Here the partition function Z is independent of z_0 and model parameters, so we can ignore it for the optimization
-     loss = E_{z_0~q_0(z)} [log q0(z0) - sum_k log det |J_k| + U(z_K)]
+     loss = E_{z_0 ~ q_0(z)} [log q0(z0) - sum_k log det |J_k| + U(z_K)]
 
 **The expectation could be approximated by Monte Carlo Sampling, the mini-batch average here could be considered as the
 Monte Carlo Sampling Expectation.**
