@@ -17,13 +17,16 @@ We will select Normal distribution as the simple distribution and then transfer 
 # Experiments Results
 This section show the experiments results.
 1. K=4
+<img src="images/k_4/k_4.gif">
 
 2. K=8
+<img src="images/k_8/k_8.gif">
 
 3. K=16
 <img src="images/k_16/k_16.gif">
 
 4. K=32
+<img src="images/k_32/k_32.gif">
 
 # Training Criteria
 The known target distributions are specified using energy functions U(z).
