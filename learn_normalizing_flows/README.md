@@ -1,3 +1,5 @@
+Repo moved to [NormalizingFlow](https://github.com/weixsong/NormalizingFlow)
+
 # Variational Inference with Normalizing Flows
 Implementation of paper [Variational Inference with Normalizing Flows](https://arxiv.org/abs/1505.05770) section 6.1 experiments.
 
