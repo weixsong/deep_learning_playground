@@ -150,7 +150,7 @@ if __name__ == '__main__':
     K = 32
     z_dim = 2
     L = 256
-    steps = 1000000
+    steps = 4000000
     is_training = True
     learning_rate = 0.001
     save_model_every_steps = 1000
