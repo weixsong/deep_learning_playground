@@ -3,6 +3,9 @@ Implementation of paper [Variational Inference with Normalizing Flows](https://a
 
 The distributions that we want to learn is as followings:
 <img src="images/data.png">
+We want to learning the Bi-variate distribution of Z(Z1, Z2).
+<img src="images/U_dist.png">
+Equation for each of the distribution could be found at paper.
 
 
 
